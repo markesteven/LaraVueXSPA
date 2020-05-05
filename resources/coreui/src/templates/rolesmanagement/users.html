@@ -1,0 +1,209 @@
+<div class="animated fadeIn"> <!-- DONT REMOVE THIS DIV -->
+  <loading :active.sync="isLoading"
+  :is-full-page="true"></loading>
+
+  <div  v-show="!isLoading" class="col-md-12">
+    <div class="animated">
+      <div class="col-xs-12">
+        <b-card>
+          <h3>User List</h3>
+          <br><br>
+          <div class="row" style="align-items: center;">
+
+            <div class="col-sm-6 pull-right">
+              <user-filter-bar></user-filter-bar>
+            </div>
+            <div class="col-sm-6">
+              <b-button v-if="user.can['add_users']" variant="primary" class="pull-right" size="sm" @click="showAddUserModal()"><i class="fa fa-plus"></i>&nbsp; Create User</b-button>
+            </div>
+          </div>
+          <br>
+
+
+          <div class="table-responsive">
+            <vuetable ref="vuetable" :http-options="{ headers: {Authorization: `Bearer ${this.$auth.token()}`} }" api-url="/api/users"
+              :fields="fields"
+              pagination-path=""
+              :css="css"
+              :sort-order="sortOrder"
+              :multi-sort="true"
+              detail-row-component="users-detail-row"
+              :append-params="moreParams"
+              @vuetable:pagination-data="onPaginationData">
+
+              <!-- Template for edit and delete button in action column -->
+              <template slot="actions" slot-scope="props">
+                <div class="table-button-container">
+                  <div class="custom-actions">
+                    <b-button v-if="user.can['edit_users']" size="sm" variant="primary" data-toggle="modal" @click='fetchUser(props.rowData.id)'><i class="fa fa-pencil-square"></i></b-button>
+                    <b-button v-if="user.can['delete_users']" size="sm" variant="danger" @click='removeUser(props.rowData.id)'><i class="fa fa-trash"></i></b-button>
+                  </div>
+                </div>
+              </template>
+
+            </vuetable>
+          </div>
+
+          <simplert ref="deleteconfirmation"> </simplert>
+
+          <div class="vuetable-pagination">
+            <vuetable-pagination-info ref="paginationInfo"
+              info-class="pagination-info"
+            ></vuetable-pagination-info>
+            <vuetable-pagination ref="pagination"
+              :css="css.pagination"
+              @vuetable-pagination:change-page="onChangePage"
+            ></vuetable-pagination>
+          </div>
+        </b-card>
+      </div>
+    </div>
+
+    <!-- Modal for updating -->
+    <form  @submit.prevent="editUser(form.id)" @keydown="form.errors.clear($event.target.name)">
+      <div class="modal fade" id="edit-user" tabindex="-1" role="dialog" aria-labelledby="editUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="editUserModalLabel">Edit User</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close" @click="resetForm">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <b-form-fieldset
+                label="Name"
+                description="Please enter the user's full name."
+                :label-cols="2"
+                :horizontal="true">
+                <b-form-input type="text" :class="form.errors.has('name') ? 'is-invalid' : '' " v-model="form.name" ></b-form-input>
+                <div v-if="form.errors.has('name')" class="invalid-feedback">
+                  {{ form.errors.get('name') }}
+                </div>
+              </b-form-fieldset>
+
+              <b-form-fieldset
+                label="Email"
+                description="Please enter the user's email."
+                :label-cols="2"
+                :horizontal="true">
+                <b-form-input type="email" :class="form.errors.has('email') ? 'is-invalid' : '' " v-model="form.email" ></b-form-input>
+                <div v-if="form.errors.has('email')" class="invalid-feedback">
+                  {{ form.errors.get('email') }}
+                </div>
+              </b-form-fieldset>
+
+              <b-form-fieldset
+                label="Password"
+                description="Please enter the user's password. Must be atleast 6 characters long."
+                :label-cols="2"
+                :horizontal="true">
+                <small class="text-warning">Leave this empty to keep the old password</small>
+                <b-form-input type="password" :class="form.errors.has('password') ? 'is-invalid' : '' " v-model="form.password" ></b-form-input>
+                <div v-if="form.errors.has('password')" class="invalid-feedback">
+                  {{ form.errors.get('password') }}
+                </div>
+              </b-form-fieldset>
+
+              <b-form-fieldset
+                label="Role"
+                description="Please select the role of the user."
+                :label-cols="2"
+                :horizontal="true">
+                <b-form-select
+                  v-model="form.roles"
+                  :class="form.errors.has('roles') ? 'is-invalid' : '' "
+                  :plain="true">
+                    <option v-for="role in roles" :value='role.id'>{{ role.name }}</option>
+                </b-form-select>
+                <div v-if="form.errors.has('roles')" class="invalid-feedback">
+                  {{ form.errors.get('roles') }}
+                </div>
+              </b-form-fieldset>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-primary">Update</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal" @click="resetForm">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+
+  <!-- Modal for creating -->
+
+
+    <form  @submit.prevent="addNewUser" @keydown="form.errors.clear($event.target.name)">
+
+      <div class="modal fade" id="add-user" tabindex="-1" role="dialog" aria-labelledby="addUserModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="addUserModalLabel">Add User</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close" @click="resetForm">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <b-form-fieldset
+              label="Name"
+              description="Please enter the user's full name."
+              :label-cols="2"
+              :horizontal="true">
+              <b-form-input type="text" :class="form.errors.has('name') ? 'is-invalid' : '' " v-model="form.name" ></b-form-input>
+              <div v-if="form.errors.has('name')" class="invalid-feedback">
+                {{ form.errors.get('name') }}
+              </div>
+            </b-form-fieldset>
+
+            <b-form-fieldset
+              label="Email"
+              description="Please enter the user's email."
+              :label-cols="2"
+              :horizontal="true">
+              <b-form-input type="email" :class="form.errors.has('email') ? 'is-invalid' : '' " v-model="form.email" ></b-form-input>
+              <div v-if="form.errors.has('email')" class="invalid-feedback">
+                {{ form.errors.get('email') }}
+              </div>
+            </b-form-fieldset>
+
+            <b-form-fieldset
+              label="Password"
+              description="Please enter the user's password. Must be atleast 6 characters long."
+              :label-cols="2"
+              :horizontal="true">
+              <b-form-input type="password" :class="form.errors.has('password') ? 'is-invalid' : '' " v-model="form.password" ></b-form-input>
+              <div v-if="form.errors.has('password')" class="invalid-feedback">
+                {{ form.errors.get('password') }}
+              </div>
+            </b-form-fieldset>
+
+            <b-form-fieldset
+              label="Role"
+              description="Please select the role of the user."
+              :label-cols="2"
+              :horizontal="true">
+              <b-form-select
+                v-model="form.roles"
+                :class="form.errors.has('roles') ? 'is-invalid' : '' "
+                :plain="true">
+                <option value=''>Select Role</option>
+                <option v-for="role in roles" :value='role.id'>{{ role.name }}</option>
+              </b-form-select>
+              <div v-if="form.errors.has('roles')" class="invalid-feedback">
+                {{ form.errors.get('roles') }}
+              </div>
+            </b-form-fieldset>
+            </div>
+            <div class="modal-footer">
+              <button type="submit" class="btn btn-primary">Submit</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal" @click="resetForm">Close</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </form>
+  </div>
+
+</div>
