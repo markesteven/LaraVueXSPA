@@ -41,7 +41,7 @@
     "babel-polyfill": "^6.26.0",
     "fs": "0.0.1-security",
     "moment": "^2.24.0",
-    "node-sass": "^4.13.0",
+    "node-sass": "^7.0.0",
     "popper.js": "^1.12.9",
     "toastr": "^2.1.4",
     "vue-events": "^3.1.0",
